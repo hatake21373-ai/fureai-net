@@ -2,8 +2,6 @@ name: Run fureai-net check
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */3 * * *'
 
 jobs:
   run-script:
