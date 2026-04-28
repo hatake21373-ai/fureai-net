@@ -1,6 +1,6 @@
 from datetime import datetime
 from scraper import scrape_slots, filter_available_slots
-from notifier import send_line_message
+from notifier import send_line_message, send_email_message  # ←追加
 
 def build_message(slots):
     reservable = [s for s in slots if s["can_reserve"]]
@@ -41,7 +41,15 @@ def main():
     if available:
         message = build_message(available)
         print(message)
+
+        # LINE通知
         send_line_message(message)
+
+        # メール通知
+        send_email_message(
+            subject="【川崎市ふれあいネット】平日夜間 空き通知",
+            body=message
+        )
     else:
         print("空きはありませんでした。")
 
