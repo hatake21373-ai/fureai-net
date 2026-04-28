@@ -1,12 +1,22 @@
 from datetime import datetime
 from scraper import scrape_slots, filter_available_slots
-from notifier import send_line_message, send_email_message  # ←追加
+from notifier import send_line_message, send_email_message
+
+# 対象施設
+TARGET_FACILITIES = [
+    "高津スポーツセンター",
+    "川崎市民プラザ",
+]
+
 
 def build_message(slots):
     reservable = [s for s in slots if s["can_reserve"]]
     phone_only = [s for s in slots if not s["can_reserve"]]
 
     lines = ["【川崎市ふれあいネット 平日夜間 空き通知】", ""]
+    lines.append(f"対象施設: {', '.join(TARGET_FACILITIES)}")
+    lines.append("条件: 平日 + 夜間")
+    lines.append("")
 
     lines.append("■ 予約可能な空き")
     if reservable:
@@ -29,17 +39,54 @@ def build_message(slots):
     return "\n".join(lines)
 
 
+def is_target_facility(facility_name: str) -> bool:
+    """
+    施設名は「高津スポーツセンター／大体育室」みたいな表記を想定して部分一致
+    """
+    return any(target in facility_name for target in TARGET_FACILITIES)
+
+
+def is_weekday(date_str: str) -> bool:
+    """
+    date_str: '2026-05-01' 形式を想定
+    月=0, 火=1, 水=2, 木=3, 金=4, 土=5, 日=6
+    平日 = 0〜4
+    """
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.weekday() < 5
+    except Exception as e:
+        print(f"[DATE PARSE ERROR] {date_str} -> {e}")
+        return False
+
+
+def is_night_time(time_label: str) -> bool:
+    """
+    time_label に「夜間」が含まれていれば対象
+    """
+    return "夜間" in time_label
+
+
 def main():
     print(f"[START] {datetime.now().isoformat()}")
 
     results = scrape_slots()
     available = filter_available_slots(results)
 
-    print("総取得件数:", len(results))
-    print("空き件数:", len(available))
+    # 施設 + 平日 + 夜間で絞る
+    filtered_available = [
+        s for s in available
+        if is_target_facility(s["facility"])
+        and is_weekday(s["date"])
+        and is_night_time(s["time_label"])
+    ]
 
-    if available:
-        message = build_message(available)
+    print("総取得件数:", len(results))
+    print("空き件数（全体）:", len(available))
+    print("空き件数（対象施設・平日夜間）:", len(filtered_available))
+
+    if filtered_available:
+        message = build_message(filtered_available)
         print(message)
 
         # LINE通知
@@ -51,7 +98,7 @@ def main():
             body=message
         )
     else:
-        print("空きはありませんでした。")
+        print("対象施設の平日夜間の空きはありませんでした。")
 
     print(f"[END] {datetime.now().isoformat()}")
 
