@@ -12,7 +12,7 @@ TARGET_FACILITIES = [
 
 
 # =========================
-# 通知文作成
+# 通知文作成（空きあり）
 # =========================
 def build_message(slots):
     reservable = [s for s in slots if s["can_reserve"]]
@@ -41,6 +41,20 @@ def build_message(slots):
         lines.append("なし")
     lines.append("")
 
+    return "\n".join(lines)
+
+
+# =========================
+# 通知文作成（空きなし）
+# =========================
+def build_no_slots_message():
+    lines = ["【川崎市ふれあいネット 平日夜間 空き通知】", ""]
+    lines.append(f"対象施設: {', '.join(TARGET_FACILITIES)}")
+    lines.append("条件: 平日 + 夜間")
+    lines.append("")
+    lines.append("■ 結果")
+    lines.append("対象施設の平日夜間に空きはありませんでした。")
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -104,10 +118,11 @@ def main():
     print("空き件数（対象施設・平日夜間）:", len(filtered_available))
 
     if filtered_available:
+        # 空きあり
         message = build_message(filtered_available)
         print(message)
 
-        # LINE通知
+        # LINE通知（空きありの時だけ）
         try:
             send_line_message(message)
         except Exception as e:
@@ -116,13 +131,24 @@ def main():
         # メール通知
         try:
             send_email_message(
-                subject="【川崎市ふれあいネット】平日夜間 空き通知",
+                subject="【川崎市ふれあいネット】平日夜間 空きあり通知",
                 body=message
             )
         except Exception as e:
             print("[MAIL ERROR]", str(e))
     else:
-        print("対象施設の平日夜間の空きはありませんでした。")
+        # 空きなし
+        no_slots_message = build_no_slots_message()
+        print(no_slots_message)
+
+        # メールだけ送る（LINEは送らない）
+        try:
+            send_email_message(
+                subject="【川崎市ふれあいネット】平日夜間 空きなし通知",
+                body=no_slots_message
+            )
+        except Exception as e:
+            print("[MAIL ERROR]", str(e))
 
     print(f"[END] {datetime.now().isoformat()}")
 
