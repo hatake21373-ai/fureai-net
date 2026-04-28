@@ -7,18 +7,12 @@ import re
 START_URL = "https://www.fureai-net.city.kawasaki.jp/user/view/user/homeIndex.html"
 
 
-def get_first_day_of_next_month(base_date: date) -> date:
-    year = base_date.year
-    month = base_date.month + 1
-
-    if month > 12:
-        month = 1
-        year += 1
-
-    return date(year, month, 1)
-
-
 def get_end_of_month_three_months_later(base_date: date) -> date:
+    """
+    base_date から3か月後の月末を返す
+    例:
+      2026-04-29 -> 2026-07-31
+    """
     year = base_date.year
     month = base_date.month + 3
 
@@ -31,12 +25,21 @@ def get_end_of_month_three_months_later(base_date: date) -> date:
 
 
 def get_target_dates(base_date: date):
-    start_date = get_first_day_of_next_month(base_date)
+    """
+    対象日:
+      - 明日以降
+      - 3か月後の月末まで
+      - 平日（月〜金）
+      - 祝日除外
+    """
+    start_date = base_date + timedelta(days=1)  # ← 明日から
     end_date = get_end_of_month_three_months_later(base_date)
+
     dates = []
     current = start_date
 
     while current <= end_date:
+        # 平日かつ祝日でない日だけ対象
         if current.weekday() < 5 and not jpholiday.is_holiday(current):
             dates.append(current)
         current += timedelta(days=1)
@@ -207,10 +210,18 @@ def collect_all_slots_for_one_day(page, target_date):
 
 
 def is_night_slot(time_label: str) -> bool:
+    """
+    現状は「夜間」完全一致のみ
+    ※ もし実データが「夜間A」「夜間（18:00〜21:00）」なら
+       `return "夜間" in time_label` に変える
+    """
     return time_label == "夜間"
 
 
 def filter_available_slots(slots):
+    """
+    空き かつ 夜間のみ抽出
+    """
     return [
         s for s in slots
         if s["status"] == "空き" and is_night_slot(s["time_label"])
@@ -221,7 +232,7 @@ def scrape_slots():
     base_date = date.today()
     target_dates = get_target_dates(base_date)
 
-    print("対象日一覧")
+    print("対象日一覧（明日以降・平日・祝日除外）")
     for d in target_dates:
         print(d.isoformat())
 
@@ -237,11 +248,15 @@ def scrape_slots():
             print("=" * 50)
             print(f"{target_date} の確認を開始")
 
-            set_search_date(page, target_date)
-            day_results = collect_all_slots_for_one_day(page, target_date)
-            all_results.extend(day_results)
-
-            print(f"{target_date} の取得件数: {len(day_results)}")
+            try:
+                set_search_date(page, target_date)
+                day_results = collect_all_slots_for_one_day(page, target_date)
+                all_results.extend(day_results)
+                print(f"{target_date} の取得件数: {len(day_results)}")
+            except Exception as e:
+                print(f"[DAY ERROR] {target_date} -> {e}")
+                # 次の日へ進む
+                continue
 
         browser.close()
 
