@@ -131,7 +131,7 @@ def main():
         # メール通知
         try:
             send_email_message(
-                subject="【川崎市ふれあいネット】平日夜間 空きあり通知",
+                subject="【川崎市ふれあいネット】平日夜間 空き通知",
                 body=message
             )
         except Exception as e:
@@ -144,7 +144,7 @@ def main():
         # メールだけ送る（LINEは送らない）
         try:
             send_email_message(
-                subject="【川崎市ふれあいネット】平日夜間 空きなし通知",
+                subject="【川崎市ふれあいネット】平日夜間 空き通知",
                 body=no_slots_message
             )
         except Exception as e:
