@@ -2,13 +2,18 @@ from datetime import datetime
 from scraper import scrape_slots, filter_available_slots
 from notifier import send_line_message, send_email_message
 
-# 対象施設
+# =========================
+# 設定
+# =========================
 TARGET_FACILITIES = [
     "高津スポーツセンター",
     "川崎市民プラザ",
 ]
 
 
+# =========================
+# 通知文作成
+# =========================
 def build_message(slots):
     reservable = [s for s in slots if s["can_reserve"]]
     phone_only = [s for s in slots if not s["can_reserve"]]
@@ -27,6 +32,7 @@ def build_message(slots):
         lines.append("なし")
     lines.append("")
 
+    lines.append("■ 予約不可（電話対応のみ）な空き")
     if phone_only:
         for s in phone_only:
             lines.append(f'{s["date"]} {s["facility"]}')
@@ -38,16 +44,19 @@ def build_message(slots):
     return "\n".join(lines)
 
 
+# =========================
+# 判定ロジック
+# =========================
 def is_target_facility(facility_name: str) -> bool:
     """
-    施設名は「高津スポーツセンター／大体育室」みたいな表記を想定して部分一致
+    施設名は「高津スポーツセンター／大体育室」などの可能性があるので部分一致
     """
     return any(target in facility_name for target in TARGET_FACILITIES)
 
 
 def is_weekday(date_str: str) -> bool:
     """
-    date_str: '2026-05-01' 形式を想定
+    date_str: '2026-05-01' 形式想定
     月=0, 火=1, 水=2, 木=3, 金=4, 土=5, 日=6
     平日 = 0〜4
     """
@@ -61,18 +70,28 @@ def is_weekday(date_str: str) -> bool:
 
 def is_night_time(time_label: str) -> bool:
     """
-    time_label に「夜間」が含まれていれば対象
+    time_label に「夜間」が含まれるものを対象
+    例:
+      - 夜間
+      - 夜間A
+      - 夜間（18:00〜21:00）
     """
     return "夜間" in time_label
 
 
+# =========================
+# メイン処理
+# =========================
 def main():
     print(f"[START] {datetime.now().isoformat()}")
 
+    # 全件取得
     results = scrape_slots()
+
+    # 空きのみ抽出
     available = filter_available_slots(results)
 
-    # 施設 + 平日 + 夜間で絞る
+    # 対象施設 + 平日 + 夜間 に絞る
     filtered_available = [
         s for s in available
         if is_target_facility(s["facility"])
@@ -89,13 +108,19 @@ def main():
         print(message)
 
         # LINE通知
-        send_line_message(message)
+        try:
+            send_line_message(message)
+        except Exception as e:
+            print("[LINE ERROR]", str(e))
 
         # メール通知
-        send_email_message(
-            subject="【川崎市ふれあいネット】平日夜間 空き通知",
-            body=message
-        )
+        try:
+            send_email_message(
+                subject="【川崎市ふれあいネット】平日夜間 空き通知",
+                body=message
+            )
+        except Exception as e:
+            print("[MAIL ERROR]", str(e))
     else:
         print("対象施設の平日夜間の空きはありませんでした。")
 
