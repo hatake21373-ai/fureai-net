@@ -27,7 +27,6 @@ def build_message(slots):
         lines.append("なし")
     lines.append("")
 
-    lines.append("■ 予約不可（電話対応のみ）な空き")
     if phone_only:
         for s in phone_only:
             lines.append(f'{s["date"]} {s["facility"]}')
