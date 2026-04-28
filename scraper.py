@@ -9,7 +9,7 @@ START_URL = "https://www.fureai-net.city.kawasaki.jp/user/view/user/homeIndex.ht
 
 def get_first_day_of_next_month(base_date: date) -> date:
     year = base_date.year
-    month = base_date.month + 1
+    month = base_date.month
 
     if month > 12:
         month = 1
