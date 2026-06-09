@@ -3,6 +3,10 @@ name: Run fureai-net check
 on:
   workflow_dispatch:
 
+  schedule:
+    - cron: '0 3 * * *'    # 日本時間12:00
+    - cron: '0 13 * * *'   # 日本時間22:00
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
